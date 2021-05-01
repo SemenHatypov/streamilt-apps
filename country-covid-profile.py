@@ -8,22 +8,6 @@ from plotly.colors import diverging
 
 
 COVID_DATA_URL = "https://covid.ourworldindata.org/data/owid-covid-data.csv"
-# METRICS = [
-#     "new_tests",
-#     "new_tests_per_thousand",
-#     "new_cases",
-#     "new_cases_per_million",
-#     "new_deaths",
-#     "new_deaths_per_million",
-#     "new_vaccinations",
-#     "total_vaccinations",
-#     "total_vaccinations_per_hundred",
-#     "people_vaccinated",
-#     "people_vaccinated_per_hundred",
-#     "people_fully_vaccinated",
-#     "people_fully_vaccinated_per_hundred",
-#     "stringency_index",
-# ]
 MIN_DATE = date(2020, 1, 1)
 MAX_DATE = date.today()
 
