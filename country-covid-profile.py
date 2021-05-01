@@ -65,7 +65,7 @@ def select_rolling_window():
 
 
 def select_y_scale():
-    return st.sidebar.selectbox(
+    return st.sidebar.radio(
         "Y scale", ["Linear", "Logarithmic"], index=0, help="Scalling Y axis"
     )
 
