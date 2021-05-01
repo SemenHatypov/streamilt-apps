@@ -149,10 +149,17 @@ def make_total_and_rate_plot(df, numerator, denominator, rate, y_scale, colors):
     st.plotly_chart(fig)
 
 
+def choose_colors_for_plot(numerator):
+    if numerator in ["new_cases", "new_deaths"]:
+        return CASES_DEATHS_COLORS
+    elif numerator in ["people_vaccinated", "people_fully_vaccinated"]:
+        return VACCINATIONS_COLORS
+
+
 def plot_covid_stat(df, numerator, denumerator, rate, rolling_window, y_scale, colors):
     plot_data = df.set_index("date")[[numerator, denumerator]]
-    plot_data.loc[:, rate] = plot_data[numerator] / plot_data[denumerator]
     plot_data = plot_data.rolling(rolling_window).mean().dropna()
+    plot_data.loc[:, rate] = plot_data[numerator] / plot_data[denumerator]
     make_total_and_rate_plot(plot_data, numerator, denumerator, rate, y_scale, colors)
 
 
@@ -188,11 +195,7 @@ def main():
         ["people_vaccinated", "population", "vaccination_rate"],
         ["people_fully_vaccinated", "population", "fully_vaccination_rate"],
     ]:
-        colors = (
-            CASES_DEATHS_COLORS
-            if "new_cases" in (numerator, denumerator)
-            else VACCINATIONS_COLORS
-        )
+        colors = choose_colors_for_plot(numerator)
         plot_covid_stat(
             df, numerator, denumerator, rate, rolling_window, y_scale, colors
         )
