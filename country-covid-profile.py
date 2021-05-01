@@ -10,6 +10,8 @@ from plotly.colors import diverging
 COVID_DATA_URL = "https://covid.ourworldindata.org/data/owid-covid-data.csv"
 MIN_DATE = date(2020, 1, 1)
 MAX_DATE = date.today()
+CASES_DEATHS_COLORS = ["red", "lightskyblue", "orange"]
+VACCINATIONS_COLORS = ["greenyellow", "lightskyblue", "green"]
 
 
 @st.cache(ttl=12 * 60 * 60)
@@ -92,7 +94,7 @@ def make_legend_name(column_name):
     return " ".join(capitalized_words)
 
 
-def make_total_and_rate_plot(df, numerator, denominator, rate, y_scale):
+def make_total_and_rate_plot(df, numerator, denominator, rate, y_scale, colors):
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     x = df.index
     numerator_name = make_legend_name(numerator)
@@ -106,8 +108,8 @@ def make_total_and_rate_plot(df, numerator, denominator, rate, y_scale):
             name=numerator_name,
             fill="tozeroy",
             mode=mode,
+            line=dict(color=colors[0]),
             hovertemplate="%{y:,.0f}",
-            connectgaps=False,
         ),
         secondary_y=False,
     )
@@ -118,8 +120,8 @@ def make_total_and_rate_plot(df, numerator, denominator, rate, y_scale):
             name=denominator_name,
             fill="tonexty",
             mode=mode,
+            line=dict(color=colors[1]),
             hovertemplate="%{y:,.0f}",
-            connectgaps=False,
         ),
         secondary_y=False,
     )
@@ -129,7 +131,7 @@ def make_total_and_rate_plot(df, numerator, denominator, rate, y_scale):
             y=df[rate],
             name=rate_name,
             mode=mode,
-            line=dict(color="black"),
+            line=dict(color=colors[2]),
             hovertemplate="%{y:.1%}",
         ),
         secondary_y=True,
@@ -147,11 +149,11 @@ def make_total_and_rate_plot(df, numerator, denominator, rate, y_scale):
     st.plotly_chart(fig)
 
 
-def plot_covid_stat(df, numerator, denumerator, rate, rolling_window, y_scale):
+def plot_covid_stat(df, numerator, denumerator, rate, rolling_window, y_scale, colors):
     plot_data = df.set_index("date")[[numerator, denumerator]]
     plot_data.loc[:, rate] = plot_data[numerator] / plot_data[denumerator]
     plot_data = plot_data.rolling(rolling_window).mean().dropna()
-    make_total_and_rate_plot(plot_data, numerator, denumerator, rate, y_scale)
+    make_total_and_rate_plot(plot_data, numerator, denumerator, rate, y_scale, colors)
 
 
 def plot_stringency_index(df):
@@ -181,12 +183,19 @@ def main():
     rolling_window = select_rolling_window()
     y_scale = select_y_scale()
     for numerator, denumerator, rate in [
-        ("new_cases", "new_tests", "positive_test_rate"),
-        ("new_deaths", "new_cases", "case_fatality_rate"),
-        ("people_vaccinated", "population", "vaccination_rate"),
-        ("people_fully_vaccinated", "population", "fully_vaccination_rate"),
+        ["new_cases", "new_tests", "positive_test_rate"],
+        ["new_deaths", "new_cases", "case_fatality_rate"],
+        ["people_vaccinated", "population", "vaccination_rate"],
+        ["people_fully_vaccinated", "population", "fully_vaccination_rate"],
     ]:
-        plot_covid_stat(df, numerator, denumerator, rate, rolling_window, y_scale)
+        colors = (
+            CASES_DEATHS_COLORS
+            if "new_cases" in (numerator, denumerator)
+            else VACCINATIONS_COLORS
+        )
+        plot_covid_stat(
+            df, numerator, denumerator, rate, rolling_window, y_scale, colors
+        )
     plot_stringency_index(df)
 
 
