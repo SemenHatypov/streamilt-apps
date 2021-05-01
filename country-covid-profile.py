@@ -100,16 +100,16 @@ def make_total_and_rate_plot(df, numerator, denominator, rate, y_scale, colors):
     numerator_name = make_legend_name(numerator)
     denominator_name = make_legend_name(denominator)
     rate_name = make_legend_name(rate)
-    mode = "lines+markers"
+    common_plot_params = dict(mode="lines+markers", line_shape = "spline")
     fig.add_trace(
         go.Scatter(
             x=x,
             y=df[numerator],
             name=numerator_name,
             fill="tozeroy",
-            mode=mode,
             line=dict(color=colors[0]),
             hovertemplate="%{y:,.0f}",
+            **common_plot_params,
         ),
         secondary_y=False,
     )
@@ -119,9 +119,9 @@ def make_total_and_rate_plot(df, numerator, denominator, rate, y_scale, colors):
             y=df[denominator],
             name=denominator_name,
             fill="tonexty",
-            mode=mode,
             line=dict(color=colors[1]),
             hovertemplate="%{y:,.0f}",
+            **common_plot_params,
         ),
         secondary_y=False,
     )
@@ -130,9 +130,9 @@ def make_total_and_rate_plot(df, numerator, denominator, rate, y_scale, colors):
             x=x,
             y=df[rate],
             name=rate_name,
-            mode=mode,
             line=dict(color=colors[2]),
             hovertemplate="%{y:.1%}",
+            **common_plot_params,
         ),
         secondary_y=True,
     )
