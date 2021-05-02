@@ -20,13 +20,17 @@ VACCINATIONS_COLORS = ["greenyellow", "lightskyblue", "green"]
 @st.cache(ttl=12 * 60 * 60)
 def load_covid_data():
     df_main = pd.read_csv(f"{HOST_URL}/{MAIN_DATA_NAME}", parse_dates=["date"])
-    df_tests = pd.read_csv(f"{HOST_URL}/{TESTING_DATA_NAME}", parse_dates=["Date"]).rename(
+    df_tests = pd.read_csv(
+        f"{HOST_URL}/{TESTING_DATA_NAME}", parse_dates=["Date"]
+    ).rename(
         columns={
             "ISO code": "iso_code",
             "Date": "date",
             "7-day smoothed daily change": "new_tests",
         }
-    )[["date", "iso_code", "new_tests"]]
+    )[
+        ["date", "iso_code", "new_tests"]
+    ]
     df_vaccinations = pd.read_csv(
         f"{HOST_URL}/{VACCINATIONS_DATA_NAME}", parse_dates=["date"]
     )[["date", "iso_code", "people_vaccinated", "people_fully_vaccinated"]]
@@ -73,11 +77,6 @@ def select_location(locations):
     return location
 
 
-def show_last_update_for_location(df, location):
-    last_update = df.query("location == @location")["date"].max().date()
-    st.write(f"Last update for {location}: {last_update}")
-
-
 def select_rolling_window():
     return st.sidebar.slider(
         "Rolling Window", 1, 30, 7, 1, help="Window for calculating rolling mean"
@@ -86,7 +85,10 @@ def select_rolling_window():
 
 def select_y_scale():
     return st.sidebar.radio(
-        "Y scale", ["Linear", "Logarithmic"], index=0, help="Scaling Y axis for total values"
+        "Y scale",
+        ["Linear", "Logarithmic"],
+        index=0,
+        help="Scaling Y axis for total values",
     )
 
 
@@ -120,7 +122,7 @@ def make_total_and_rate_plot(df, numerator, denominator, rate, y_scale, colors):
     numerator_name = make_legend_name(numerator)
     denominator_name = make_legend_name(denominator)
     rate_name = make_legend_name(rate)
-    common_plot_params = dict(mode="lines+markers", line_shape = "spline")
+    common_plot_params = dict(mode="lines+markers", line_shape="spline")
     fig.add_trace(
         go.Scatter(
             x=x,
@@ -165,7 +167,7 @@ def make_total_and_rate_plot(df, numerator, denominator, rate, y_scale, colors):
         secondary_y=False,
         type="linear" if y_scale == "Linear" else "log",
     )
-    fig.update_yaxes(title_text="Rate", secondary_y=True)
+    fig.update_yaxes(title_text="Rate", tickformat="%", secondary_y=True)
     st.plotly_chart(fig)
 
 
@@ -196,6 +198,7 @@ def plot_stringency_index(df):
     )
     fig.update_layout(title_text="Measure of the strictness of policy responses")
     fig.update_yaxes(title_text="Stringency Index", range=[0, 100])
+    fig.update_xaxes(title_test="Date")
     st.plotly_chart(fig)
 
 
@@ -204,7 +207,6 @@ def main():
     df_all = load_covid_data()
     locations = get_locations(df_all)
     location = select_location(locations)
-    show_last_update_for_location(df_all, location)
     min_date, max_date = select_date_range()
     df = filter_data(df_all, location, min_date, max_date)
     rolling_window = select_rolling_window()
