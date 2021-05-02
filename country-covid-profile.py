@@ -7,7 +7,10 @@ from plotly.subplots import make_subplots
 from plotly.colors import diverging
 
 
-COVID_DATA_URL = "https://covid.ourworldindata.org/data/owid-covid-data.csv"
+HOST_URL = "https://covid.ourworldindata.org/data/"
+MAIN_DATA_NAME = "owid-covid-data.csv"
+TESTING_DATA_NAME = "testing/covid-testing-all-observations.csv"
+VACCINATIONS_DATA_NAME = "vaccinations/vaccinations.csv"
 MIN_DATE = date(2020, 1, 1)
 MAX_DATE = date.today()
 CASES_DEATHS_COLORS = ["red", "lightskyblue", "orange"]
@@ -16,7 +19,24 @@ VACCINATIONS_COLORS = ["greenyellow", "lightskyblue", "green"]
 
 @st.cache(ttl=12 * 60 * 60)
 def load_covid_data():
-    df = pd.read_csv(COVID_DATA_URL, parse_dates=["date"])
+    df_main = pd.read_csv(f"{HOST_URL}/{MAIN_DATA_NAME}", parse_dates=["date"])
+    df_tests = pd.read_csv(f"{HOST_URL}/{TESTING_DATA_NAME}", parse_dates=["Date"]).rename(
+        columns={
+            "ISO code": "iso_code",
+            "Date": "date",
+            "7-day smoothed daily change": "new_tests",
+        }
+    )[["date", "iso_code", "new_tests"]]
+    df_vaccinations = pd.read_csv(
+        f"{HOST_URL}/{VACCINATIONS_DATA_NAME}", parse_dates=["date"]
+    )[["date", "iso_code", "people_vaccinated", "people_fully_vaccinated"]]
+    merge_params = dict(on=["date", "iso_code"], how="left", suffixes=("", "_merged"))
+    df = df_main.merge(df_tests, **merge_params).merge(df_vaccinations, **merge_params)
+    columns_to_fill = ["new_tests", "people_vaccinated", "people_fully_vaccinated"]
+    for c in columns_to_fill:
+        df.loc[:, c] = df[c].fillna(df[f"{c}_merged"])
+    df.drop(columns=[f"{c}_merged" for c in columns_to_fill], inplace=True)
+    df.drop_duplicates(subset=["date", "location"], inplace=True)
     return df
 
 
@@ -48,7 +68,7 @@ def get_locations(df, orderby="population", ascending=False):
 
 def select_location(locations):
     location = st.sidebar.selectbox(
-        "Country", locations, index=8, help="For showing covid profile"
+        "Country", locations, index=8, help="For showing COVID profile"
     )
     return location
 
@@ -60,13 +80,13 @@ def show_last_update_for_location(df, location):
 
 def select_rolling_window():
     return st.sidebar.slider(
-        "Rolling Window", 1, 30, 7, 1, help="Window for calcilating rolling mean"
+        "Rolling Window", 1, 30, 7, 1, help="Window for calculating rolling mean"
     )
 
 
 def select_y_scale():
     return st.sidebar.radio(
-        "Y scale", ["Linear", "Logarithmic"], index=0, help="Scalling Y axis"
+        "Y scale", ["Linear", "Logarithmic"], index=0, help="Scaling Y axis for total values"
     )
 
 
