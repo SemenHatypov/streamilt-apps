@@ -101,7 +101,7 @@ def select_date_range():
         help="First day in shown data",
     )
     max_date = st.sidebar.date_input(
-        "End Date", MAX_DATE, MIN_DATE, MAX_DATE, help="Last day in shown data"
+        "End Date", MAX_DATE, min_date, MAX_DATE, help="Last day in shown data"
     )
     return min_date, max_date
 
