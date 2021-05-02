@@ -198,7 +198,7 @@ def plot_stringency_index(df):
     )
     fig.update_layout(title_text="Measure of the strictness of policy responses")
     fig.update_yaxes(title_text="Stringency Index", range=[0, 100])
-    fig.update_xaxes(title_test="Date")
+    fig.update_xaxes(title_text="Date")
     st.plotly_chart(fig)
 
 
