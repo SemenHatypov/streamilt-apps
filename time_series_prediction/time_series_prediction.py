@@ -1,15 +1,19 @@
 from datetime import date, timedelta
-from generate_time_series import (
-    generate_time_series,
-    WEEK_VALUES_INDEX_INFO,
-    MONTH_VALUES_INDEX_INFO,
-    scale_date,
-)
-import streamlit as st
+
+import numpy as np
+import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-import pandas as pd
+import streamlit as st
 from fbprophet import Prophet
+from sklearn.metrics import median_absolute_error, r2_score
+from statsmodels.tsa.holtwinters import ExponentialSmoothing as HWES
+
+from generate_time_series import (
+    MONTH_VALUES_INDEX_INFO,
+    WEEK_VALUES_INDEX_INFO,
+    generate_time_series,
+)
 
 
 def make_title():
@@ -134,7 +138,7 @@ def plot_series(series, split_date):
     if len(series) > 0:
         fig = px.line(series)
         fig.add_vline(x=split_date, line=dict(color="red", dash="dash"))
-        fig.update_traces(mode="markers+lines", hovertemplate=None)
+        fig.update_traces(hovertemplate=None)
         fig.update_yaxes(title_text="Value")
         fig.update_layout(title_text="Your Series", showlegend=False)
         st.plotly_chart(fig)
@@ -175,25 +179,44 @@ def make_forecast_with_frophet(train, test, scale):
     return forecast
 
 
+def train_holt_winters(train):
+    return HWES(train, seasonal_periods=12, trend="add", seasonal="mul").fit()
+    # TODO: fix error with low data size
+
+
+def apply_holt_winters(model, test):
+    return pd.DataFrame(
+        data=model.forecast(steps=len(test)), index=test.index, columns=["forecast"]
+    )
+
+
+def make_forecast_with_holt_winters(train, test):
+    model = train_holt_winters(train)
+    forecast = apply_holt_winters(model, test)
+    forecast.loc[:, "real"] = test.values
+    return forecast
+
+
 def plot_data_and_forecast(train, forecast, model_name):
     fig = go.Figure()
-    fig.add_trace(
-        go.Scatter(
-            x=forecast.index,
-            y=forecast.forecast_lower,
-            name="Lower Boundary",
-            line_color="red",
+    if "forecast_lower" in forecast.columns and "forecast_upper" in forecast.columns:
+        fig.add_trace(
+            go.Scatter(
+                x=forecast.index,
+                y=forecast.forecast_lower,
+                name="Lower Boundary",
+                line_color="red",
+            )
         )
-    )
-    fig.add_trace(
-        go.Scatter(
-            x=forecast.index,
-            y=forecast.forecast_upper,
-            name="Upper Boundary",
-            line_color="red",
-            fill="tonexty",
+        fig.add_trace(
+            go.Scatter(
+                x=forecast.index,
+                y=forecast.forecast_upper,
+                name="Upper Boundary",
+                line_color="red",
+                fill="tonexty",
+            )
         )
-    )
     fig.add_trace(go.Scatter(x=forecast.index, y=forecast.real, name="Test Series"))
     fig.add_trace(go.Scatter(x=forecast.index, y=forecast.forecast, name="Forecast"))
     fig.add_trace(go.Scatter(x=train.index, y=train.values, name="Train Series"))
@@ -202,10 +225,52 @@ def plot_data_and_forecast(train, forecast, model_name):
     st.plotly_chart(fig)
 
 
+def merge_foreacsts(forecasts_dict):
+    result = pd.DataFrame()
+    for model_name, data in forecasts_dict.items():
+        result.loc[:, model_name] = data["forecast"]
+    result.loc[:, "Test Series"] = data["real"]
+    return result
+
+
+def plot_all_forecasts_on_one_plot(train, all_forecasts):
+    plot_data = pd.concat([train, all_forecasts]).rename(columns={0: "Train Series"})
+    fig = px.line(plot_data)
+    fig.update_traces(hovertemplate=None)
+    fig.update_xaxes(title_text="Date")
+    fig.update_layout(title_text="All Forecasts", hovermode="x")
+    st.plotly_chart(fig)
+
+
+def plot_all_forecasts_on_each_plot(train, forecasts_dict):
+    for model_name, forecast in forecasts_dict.items():
+        plot_data_and_forecast(train, forecast, model_name)
+
+
+def calculate_model_errors(forecasts_dict):
+    result = pd.DataFrame()
+    for model_name, forecast in forecasts_dict.items():
+        y_true, y_pred = forecast["real"], forecast["forecast"]
+        result.loc[model_name, "correlation"] = y_true.corr(y_pred)
+        result.loc[model_name, "median percentage error"] = (
+            np.median(np.abs(y_true - y_pred) / y_pred) * 100
+        )
+        # result.loc[model_name, "r2"] = r2_score(y_true, y_pred)
+        result.loc[model_name, "median absolute error"] = median_absolute_error(
+            y_true, y_pred
+        )
+    return result
+
+
 if __name__ == "__main__":
     make_title()
     series, scale = create_time_series()
     train, test, split_date = make_train_and_test(series)
     plot_series(series, split_date)
     fb_forecast = make_forecast_with_frophet(train, test, scale)
-    plot_data_and_forecast(train, fb_forecast, "Facebook Prophet")
+    hw_forecast = make_forecast_with_holt_winters(train, test)
+    forecasts_dict = {"Facebook Prophet": fb_forecast, "Holt-Winters": hw_forecast}
+    all_forecasts = merge_foreacsts(forecasts_dict)
+    plot_all_forecasts_on_one_plot(train, all_forecasts)
+    st.write(calculate_model_errors(forecasts_dict))
+    plot_all_forecasts_on_each_plot(train, forecasts_dict)
